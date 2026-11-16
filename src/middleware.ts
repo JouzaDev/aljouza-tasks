@@ -2,25 +2,25 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
   const pathname = request.nextUrl.pathname;
 
-  // تجاهل الملفات الثابتة وملفات النظام
+  // 1. تجاهل الملفات الثابتة وملفات النظام
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/static') ||
     pathname.includes('.')
   ) {
-    return response;
+    return NextResponse.next();
   }
 
-  // 1. فحص الجلسة عبر Supabase إن توفرت
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  // 2. التحقق من الجلسة عبر Supabase إن توفرت
   let userRole: 'manager' | 'employee' | null = null;
   let isAuthenticated = false;
 
@@ -66,46 +66,55 @@ export async function middleware(request: NextRequest) {
 
       if (user) {
         isAuthenticated = true;
-        // قراءة الدور من الـ metadata أو profiles
         userRole = (user.user_metadata?.role as 'manager' | 'employee') || 'employee';
       }
     } catch {
-      // Fallback
+      // Supabase unavailable
     }
   }
 
-  // 2. فحص المستخدم النشط التجريبي (للتبديل السلس أثناء التطوير)
+  // 3. التحقق من كوكي المستخدم التجريبي
   if (!isAuthenticated) {
     const demoUser = request.cookies.get('aljouza_active_user')?.value;
     if (demoUser) {
       isAuthenticated = true;
-      // Jouza is manager, others are employees
       userRole = demoUser === '11111111-1111-1111-1111-111111111111' ? 'manager' : 'employee';
-    } else {
-      // افتراضياً في البيئة التجريبية نعتبر جوزاء مسجلة
-      isAuthenticated = true;
-      userRole = 'manager';
     }
   }
 
-  // 3. التوجيه عند زيارة الجذر /
+  // 4. التوجيه عند زيارة الجذر /
   if (pathname === '/') {
-    const target = userRole === 'manager' ? '/admin' : '/my-tasks';
-    return NextResponse.redirect(new URL(target, request.url));
+    const redirectUrl = request.nextUrl.clone();
+    if (!isAuthenticated) {
+      redirectUrl.pathname = '/login';
+    } else {
+      redirectUrl.pathname = userRole === 'manager' ? '/admin' : '/my-tasks';
+    }
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // 4. التوجيه عند زيارة /login
+  // 5. التوجيه عند زيارة صفحة تسجيل الدخول /login
   if (pathname === '/login') {
     if (isAuthenticated) {
-      const target = userRole === 'manager' ? '/admin' : '/my-tasks';
-      return NextResponse.redirect(new URL(target, request.url));
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = userRole === 'manager' ? '/admin' : '/my-tasks';
+      return NextResponse.redirect(redirectUrl);
     }
     return response;
   }
 
-  // 5. حماية مسارات المدير /admin للمدير فقط
+  // 6. حماية مسارات لوحة التحكم من الزوار غير المسجلين
+  if (!isAuthenticated) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/login';
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // 7. حماية مسارات المدير /admin للمدير فقط
   if (pathname.startsWith('/admin') && userRole !== 'manager') {
-    return NextResponse.redirect(new URL('/my-tasks', request.url));
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/my-tasks';
+    return NextResponse.redirect(redirectUrl);
   }
 
   return response;
