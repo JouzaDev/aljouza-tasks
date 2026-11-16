@@ -12,7 +12,7 @@ export default async function HomePage() {
 
   const user = await getCurrentUser();
   if (user.role === 'manager') {
-    redirect('/admin');
+    redirect('/admin/tasks');
   } else {
     redirect('/my-tasks');
   }

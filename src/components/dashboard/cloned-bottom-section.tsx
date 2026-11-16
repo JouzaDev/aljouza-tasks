@@ -115,7 +115,7 @@ export function ClonedBottomSection({
                             {task.title}
                           </p>
                           <p className="text-[11px] text-[#8a94a6] mt-0.5">
-                            {task.goal?.title || task.partnership?.partner_name || 'مهام المنصة'}
+                            {task.goal?.title || task.partner?.name || 'مهام المنصة'}
                           </p>
                         </div>
                       </div>

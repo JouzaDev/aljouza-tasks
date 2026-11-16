@@ -10,20 +10,17 @@ export default async function DashboardLayout({
   const currentUser = await getCurrentUser();
 
   return (
-    <div className="ambient-bg min-h-screen p-2 sm:p-4 lg:p-6 flex items-center justify-center">
-      {/* Tablet Bezel Shell matching the exact image framing! */}
-      <div className="w-full max-w-[1440px] bg-[#18181c] p-2.5 sm:p-3 rounded-[38px] sm:rounded-[44px] shadow-2xl shadow-[#18181c]/25 border border-[#18181c] my-auto">
-        {/* Inner Crisp White Screen */}
-        <div className="bg-white rounded-[28px] sm:rounded-[34px] flex flex-row overflow-hidden min-h-[780px]">
-          {/* Vertical Dark Sidebar */}
-          <Sidebar currentUser={currentUser} />
+    <div className="min-h-screen bg-[#f8fafd] flex flex-col lg:flex-row antialiased">
+      {/* 
+        القائمة الجانبية القابلة للطي على يمين لوحة التحكم (RTL Sidebar)
+        تمت إزالة الإطار الأسود حول الموقع بالكامل ليصبح الموقع نظيفاً وعريضاً ومرناً
+      */}
+      <Sidebar currentUser={currentUser} />
 
-          {/* Main Content Viewport */}
-          <main className="flex-1 p-5 sm:p-7 lg:p-9 overflow-y-auto max-h-[88vh]">
-            {children}
-          </main>
-        </div>
-      </div>
+      {/* منطقة المحتوى الرئيسية الواسعة بدون إطار أسود */}
+      <main className="flex-1 min-w-0 p-4 sm:p-7 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full pt-20 lg:pt-8">
+        {children}
+      </main>
     </div>
   );
 }

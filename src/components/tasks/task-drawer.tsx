@@ -163,17 +163,24 @@ export function TaskDrawer({
               </div>
 
               {task.goal && (
-                <div className="p-3.5 rounded-2xl border border-[#f1edfa] bg-white col-span-2">
-                  <span className="text-xs text-[#8c829e] block mb-1">الهدف الاستراتيجي المرتبط</span>
-                  <span className="font-bold text-[#581c87]">{task.goal.title}</span>
+                <div className="p-3.5 rounded-2xl border border-[#f1f3f7] bg-[#faf5ff] col-span-2">
+                  <span className="text-[11px] text-[#7c3aed] block font-bold mb-0.5">الهدف المستقبلي المرتبط</span>
+                  <span className="font-extrabold text-[#18181c] text-xs">{task.goal.title}</span>
                 </div>
               )}
 
-              {task.partnership && (
-                <div className="p-3.5 rounded-2xl border border-[#f1edfa] bg-white col-span-2">
-                  <span className="text-xs text-[#8c829e] block mb-1">برنامج الشراكة</span>
-                  <span className="font-bold text-[#1e40af]">
-                    {task.partnership.partner_name} - {task.partnership.program_title}
+              {task.project && (
+                <div className="p-3.5 rounded-2xl border border-[#f1f3f7] bg-[#eff6ff] col-span-2">
+                  <span className="text-[11px] text-[#2563eb] block font-bold mb-0.5">المشروع المرتبط</span>
+                  <span className="font-extrabold text-[#18181c] text-xs">{task.project.title}</span>
+                </div>
+              )}
+
+              {task.partner && (
+                <div className="p-3.5 rounded-2xl border border-[#f1f3f7] bg-[#ecfdf5] col-span-2">
+                  <span className="text-[11px] text-[#059669] block font-bold mb-0.5">شريك النجاح</span>
+                  <span className="font-extrabold text-[#18181c] text-xs">
+                    {task.partner.name}
                   </span>
                 </div>
               )}

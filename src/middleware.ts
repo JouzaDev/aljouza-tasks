@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
     if (!isAuthenticated) {
       redirectUrl.pathname = '/login';
     } else {
-      redirectUrl.pathname = userRole === 'manager' ? '/admin' : '/my-tasks';
+      redirectUrl.pathname = userRole === 'manager' ? '/admin/tasks' : '/my-tasks';
     }
     return NextResponse.redirect(redirectUrl);
   }
@@ -97,7 +97,7 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/login') {
     if (isAuthenticated) {
       const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = userRole === 'manager' ? '/admin' : '/my-tasks';
+      redirectUrl.pathname = userRole === 'manager' ? '/admin/tasks' : '/my-tasks';
       return NextResponse.redirect(redirectUrl);
     }
     return response;

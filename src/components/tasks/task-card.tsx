@@ -7,9 +7,7 @@ import {
   Target,
   Handshake,
   CheckCircle2,
-  Clock,
-  AlertCircle,
-  FileText,
+  Layers,
 } from 'lucide-react';
 import { Task } from '@/lib/types/database';
 import { Badge } from '../ui/badge';
@@ -21,7 +19,6 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onClick, showAssignee = true }: TaskCardProps) {
-  // Priority styles
   const priorityMap: Record<
     string,
     { label: string; variant: 'rose' | 'amber' | 'blue' | 'slate' }
@@ -32,7 +29,6 @@ export function TaskCard({ task, onClick, showAssignee = true }: TaskCardProps) 
     low: { label: 'أولوية منخفضة', variant: 'slate' },
   };
 
-  // Status styles
   const statusMap: Record<
     string,
     { label: string; variant: 'slate' | 'blue' | 'amber' | 'emerald' }
@@ -46,7 +42,6 @@ export function TaskCard({ task, onClick, showAssignee = true }: TaskCardProps) 
   const priority = priorityMap[task.priority] || priorityMap.medium;
   const status = statusMap[task.status] || statusMap.todo;
 
-  // Format date
   let dueDateText = 'بدون موعد';
   let isOverdue = false;
   if (task.due_date) {
@@ -62,7 +57,7 @@ export function TaskCard({ task, onClick, showAssignee = true }: TaskCardProps) 
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-3xl p-5 border border-[#f1edfa] hover:border-[#d8b4fe] shadow-sm hover:shadow-md hover:shadow-[#3b0764]/5 transition-all duration-200 cursor-pointer flex flex-col justify-between group"
+      className="bg-white rounded-3xl p-5 border border-[#f1f3f7] hover:border-[#ddd6fe] shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group"
     >
       <div>
         {/* Top Badges Row */}
@@ -76,41 +71,49 @@ export function TaskCard({ task, onClick, showAssignee = true }: TaskCardProps) 
         </div>
 
         {/* Task Title */}
-        <h4 className="text-base font-bold text-[#1e112a] group-hover:text-[#3b0764] transition-colors leading-snug">
+        <h4 className="text-base font-extrabold text-[#18181c] group-hover:text-[#7c3aed] transition-colors leading-snug">
           {task.title}
         </h4>
 
         {/* Task Description */}
         {task.description && (
-          <p className="mt-2 text-sm text-[#5f556d] line-clamp-2 leading-relaxed">
+          <p className="mt-2 text-xs text-[#627084] line-clamp-2 leading-relaxed">
             {task.description}
           </p>
         )}
 
-        {/* Relations Tags (Goal / Partnership) */}
+        {/* Relations Tags (Goal / Project / Partner) */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {task.goal && (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-xl bg-[#faf8fd] text-[#581c87] border border-[#f1edfa]">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-[#faf5ff] text-[#7c3aed] border border-[#e9d5ff]">
               <Target className="w-3 h-3" />
-              <span className="truncate max-w-[140px]">{task.goal.title}</span>
+              <span className="truncate max-w-[130px]">{task.goal.title}</span>
             </span>
           )}
-          {task.partnership && (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-xl bg-[#faf8fd] text-[#1e40af] border border-[#dbeafe]">
+          {task.project && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]">
+              <Layers className="w-3 h-3" />
+              <span className="truncate max-w-[130px]">{task.project.title}</span>
+            </span>
+          )}
+          {task.partner && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-[#ecfdf5] text-[#059669] border border-[#a7f3d0]">
               <Handshake className="w-3 h-3" />
-              <span className="truncate max-w-[140px]">{task.partnership.partner_name}</span>
+              <span className="truncate max-w-[130px]">
+                {task.partner.name}
+              </span>
             </span>
           )}
         </div>
       </div>
 
       {/* Footer Info */}
-      <div className="mt-4 pt-3 border-t border-[#f1edfa] flex items-center justify-between text-xs text-[#5f556d]">
+      <div className="mt-4 pt-3 border-t border-[#f1f3f7] flex items-center justify-between text-xs text-[#627084]">
         {/* Assignee */}
         {showAssignee && (
-          <div className="flex items-center gap-1.5 font-medium">
-            <div className="w-6 h-6 rounded-full bg-[#f5f3ff] text-[#3b0764] border border-[#e9d5ff] flex items-center justify-center font-bold text-[10px]">
-              {task.assigned_profile?.full_name[0] || 'م'}
+          <div className="flex items-center gap-1.5 font-bold text-[#18181c]">
+            <div className="w-6 h-6 rounded-full bg-[#fed7aa] text-[#9a3412] flex items-center justify-center font-bold text-[10px]">
+              {task.assigned_profile?.avatar_badge || task.assigned_profile?.full_name[0] || 'م'}
             </div>
             <span>{task.assigned_profile?.full_name || 'غير محدد'}</span>
           </div>
@@ -119,14 +122,14 @@ export function TaskCard({ task, onClick, showAssignee = true }: TaskCardProps) 
         {/* Due Date & Approval */}
         <div className="flex items-center gap-2">
           {task.manager_approved && (
-            <span className="flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
+            <span className="flex items-center gap-1 text-emerald-600 font-extrabold text-[11px]">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>معتمدة</span>
             </span>
           )}
           <span
             className={`flex items-center gap-1 font-medium ${
-              isOverdue ? 'text-rose-600 font-bold' : 'text-[#8c829e]'
+              isOverdue ? 'text-rose-600 font-bold' : 'text-[#8a94a6]'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />

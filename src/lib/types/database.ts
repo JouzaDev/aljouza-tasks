@@ -4,8 +4,8 @@ export type GoalHorizon = 'current' | 'future';
 export type PhasePriority = 'critical' | 'high' | 'medium' | 'low';
 export type GoalStatus = 'active' | 'completed' | 'paused';
 
-export type ProgramType = 'course' | 'program' | 'event' | 'partnership';
-export type PartnershipStatus = 'planned' | 'ongoing' | 'completed' | 'cancelled';
+export type ProjectStatus = 'planning' | 'active' | 'completed' | 'on_hold';
+export type PartnerStatus = 'active' | 'completed' | 'paused';
 
 export type TaskPhase = 'planning' | 'execution' | 'review' | 'closed';
 export type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
@@ -34,24 +34,40 @@ export interface Goal {
   created_by?: string | null;
   created_at?: string;
   
+  // Linked tasks metrics
   tasks_count?: number;
   completed_tasks_count?: number;
 }
 
-export interface Partnership {
+export interface Project {
   id: string;
-  partner_name: string;
-  program_title: string;
-  program_type: ProgramType;
-  coordinator_id?: string | null;
-  coordinator?: Profile | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  status: PartnershipStatus;
-  notes?: string | null;
+  title: string;
+  description?: string | null;
+  status: ProjectStatus;
+  progress: number;
+  manager_id?: string | null;
+  due_date?: string | null;
   created_at?: string;
   
   tasks_count?: number;
+  completed_tasks_count?: number;
+}
+
+export interface Partner {
+  id: string;
+  name: string;
+  logo_url?: string | null;
+  logo_letter?: string;
+  description: string;
+  mechanism: string; // كيفية الشراكة
+  goal: string;      // هدف الشراكة
+  effectiveness_rate: number; // مقياس مدى فاعلية الشراكة (0 - 100%)
+  status: PartnerStatus;
+  created_at?: string;
+  
+  tasks_count?: number;
+  completed_tasks_count?: number;
+  actions_done?: string[];
 }
 
 export interface Task {
@@ -62,8 +78,10 @@ export interface Task {
   assigned_profile?: Profile | null;
   goal_id?: string | null;
   goal?: Goal | null;
-  partnership_id?: string | null;
-  partnership?: Partnership | null;
+  project_id?: string | null;
+  project?: Project | null;
+  partner_id?: string | null;
+  partner?: Partner | null;
   phase: TaskPhase;
   priority: TaskPriority;
   status: TaskStatus;
@@ -73,10 +91,22 @@ export interface Task {
   created_at?: string;
   updated_at?: string;
   
-  // Custom visual metrics matching the cloned UI
-  symbol?: string; // e.g. "G1", "P2", "T3"
+  symbol?: string;
   is_starred?: boolean;
-  progress_pct?: number; // e.g. +14.2%
+  progress_pct?: number;
+}
+
+export interface Achievement {
+  user_id: string;
+  user_name: string;
+  role: UserRole;
+  job_title: string;
+  avatar_badge: string;
+  completed_tasks: number;
+  in_progress_tasks: number;
+  goals_contributed: number;
+  effectiveness_score: number; // 0 - 100
+  badge: string;
 }
 
 export interface ActivityLog {

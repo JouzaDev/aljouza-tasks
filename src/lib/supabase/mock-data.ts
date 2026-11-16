@@ -1,10 +1,10 @@
-import { Profile, Goal, Partnership, Task, ActivityLog } from '../types/database';
+import { Profile, Goal, Project, Partner, Task, ActivityLog } from '../types/database';
 
 export const INITIAL_PROFILES: (Profile & { password?: string })[] = [
   {
     id: '11111111-1111-1111-1111-111111111111',
     full_name: 'جوزاء',
-    email: 'jouza@aljouza.com',
+    email: 'jouza@aljouza.sa',
     password: '123',
     role: 'manager',
     job_title: 'مدير عام المنصة',
@@ -14,7 +14,7 @@ export const INITIAL_PROFILES: (Profile & { password?: string })[] = [
   {
     id: '22222222-2222-2222-2222-222222222222',
     full_name: 'محمد',
-    email: 'mohammed@aljouza.com',
+    email: 'mohammed@aljouza.sa',
     password: '123',
     role: 'employee',
     job_title: 'أخصائي تطوير وعلاقات',
@@ -24,7 +24,7 @@ export const INITIAL_PROFILES: (Profile & { password?: string })[] = [
   {
     id: '33333333-3333-3333-3333-333333333333',
     full_name: 'ريهام',
-    email: 'reham@aljouza.com',
+    email: 'reham@aljouza.sa',
     password: '123',
     role: 'employee',
     job_title: 'منسقة برامج وفعاليات',
@@ -34,7 +34,7 @@ export const INITIAL_PROFILES: (Profile & { password?: string })[] = [
   {
     id: '44444444-4444-4444-4444-444444444444',
     full_name: 'دينا',
-    email: 'dina@aljouza.com',
+    email: 'dina@aljouza.sa',
     password: '123',
     role: 'employee',
     job_title: 'مسؤولة محتوى وإعلام',
@@ -43,12 +43,45 @@ export const INITIAL_PROFILES: (Profile & { password?: string })[] = [
   },
 ];
 
+export const INITIAL_PROJECTS: Project[] = [
+  {
+    id: 'prj-1',
+    title: 'تطوير المنصة الرقمية للجوزاء 2026',
+    description: 'إعادة هيكلة بنية النظام البرمجية وتحسين تجربة المستفيدين وربط واجهات API السريعة.',
+    status: 'active',
+    progress: 75,
+    manager_id: '11111111-1111-1111-1111-111111111111',
+    due_date: '2026-12-30',
+    created_at: '2026-10-01T08:00:00Z',
+  },
+  {
+    id: 'prj-2',
+    title: 'معسكر الجوزاء للريادة والابتكار',
+    description: 'مشروع تدريبي مكثف يشمل 4 مسارات تخصصية بالتعاون مع الشركاء التقنيين والأكاديميين.',
+    status: 'active',
+    progress: 50,
+    manager_id: '11111111-1111-1111-1111-111111111111',
+    due_date: '2027-01-20',
+    created_at: '2026-10-15T09:00:00Z',
+  },
+  {
+    id: 'prj-3',
+    title: 'إطلاق تطبيق الهواتف الذكية taska',
+    description: 'تطبيق موحد للجوال لتمكين فريق العمل والمستفيدين من إدارة المهام والأهداف أثناء التنقل.',
+    status: 'planning',
+    progress: 20,
+    manager_id: '11111111-1111-1111-1111-111111111111',
+    due_date: '2027-03-31',
+    created_at: '2026-11-01T10:00:00Z',
+  },
+];
+
 export const INITIAL_GOALS: Goal[] = [
   {
     id: 'g-1',
-    title: 'إطلاق المعسكر التدريبي للربع الأول',
-    description: 'تدريب 500 مستفيد وتطوير المحتوى التفاعلي بالشراكة مع الأكاديميات الرائدة',
-    horizon: 'current',
+    title: 'تدريب وتأهيل 500 مستفيد خلال الربع الأول',
+    description: 'تطوير المحتوى التفاعلي وتقديم ورش العمل التخصصية بالشراكة مع الأكاديميات.',
+    horizon: 'future',
     phase_priority: 'critical',
     progress: 65,
     target_date: '2026-12-15',
@@ -57,9 +90,9 @@ export const INITIAL_GOALS: Goal[] = [
   },
   {
     id: 'g-2',
-    title: 'توسيع شبكة الشراكات الاستراتيجية',
-    description: 'توقيع 3 مذكرات تفاهم جديدة مع جهات حكومية وخاصة',
-    horizon: 'current',
+    title: 'توسيع شبكة الشركاء وتوقيع 5 مذكرات تفاهم',
+    description: 'بناء شراكات استراتيجية فاعلة مع جهات تعليمية وحكومية ومسرعات أعمال.',
+    horizon: 'future',
     phase_priority: 'high',
     progress: 40,
     target_date: '2026-12-30',
@@ -68,61 +101,78 @@ export const INITIAL_GOALS: Goal[] = [
   },
   {
     id: 'g-3',
-    title: 'تطوير تطبيق الهاتف لمنصة الجوزاء',
-    description: 'البدء في مرحلة دراسة الجدوى وتصميم واجهات المستخدم لتسهيل تجربة المستفيدين',
+    title: 'أتمتة كافة تقارير الأداء ومؤشرات الإنجاز',
+    description: 'تفعيل نظام التقارير الأسبوعية والشهرية والسنوية الذاتية لقياس مساهمة كل فرد.',
     horizon: 'future',
     phase_priority: 'medium',
-    progress: 15,
-    target_date: '2027-03-31',
+    progress: 85,
+    target_date: '2027-02-15',
     status: 'active',
     created_by: '11111111-1111-1111-1111-111111111111',
   },
 ];
 
-export const INITIAL_PARTNERSHIPS: Partnership[] = [
+export const INITIAL_PARTNERS: Partner[] = [
   {
-    id: 'p-1',
-    partner_name: 'أكاديمية طويق',
-    program_title: 'برنامج ريادة الأعمال التقنية',
-    program_type: 'program',
-    coordinator_id: '33333333-3333-3333-3333-333333333333', // ريهام
-    start_date: '2026-11-01',
-    end_date: '2026-12-20',
-    status: 'ongoing',
-    notes: 'تنسيق معسكر تدريبي مشترك لـ 30 رائد أعمال مع تجهيز ورش العمل الأسبوعية',
+    id: 'prt-1',
+    name: 'أكاديمية طويق',
+    logo_letter: 'ط',
+    logo_url: null,
+    description: 'شريك تقني لتقديم المعسكرات والبرامج التدريبية المتقدمة لرواد الأعمال.',
+    mechanism: 'تنظيم معسكر تدريبي مشترك فصلي، استضافة ورش عمل تقنية، وتقديم شهادات معتمدة للمتخرجين.',
+    goal: 'تأهيل 200 متدرب في مسارات التقنيات الناشئة والذكاء الاصطناعي.',
+    effectiveness_rate: 92, // مقياس الفاعلية 92%
+    status: 'active',
+    actions_done: [
+      'اعتماد الحقائب التدريبية',
+      'تجهيز قاعات المعسكر واستقبال الدفعة الأولى',
+      'تنظيم هاكاثون ختامي للمشاريع المتميزة',
+    ],
+    created_at: '2026-10-01T08:00:00Z',
   },
   {
-    id: 'p-2',
-    partner_name: 'جامعة الملك سعود',
-    program_title: 'ملتقى مهارات المستقبل 2026',
-    program_type: 'event',
-    coordinator_id: '22222222-2222-2222-2222-222222222222', // محمد
-    start_date: '2026-12-05',
-    end_date: '2026-12-08',
-    status: 'planned',
-    notes: 'مشاركة بجناح تعريفي وجلستين حواريتين وتنسيق وفد منصة الجوزاء',
+    id: 'prt-2',
+    name: 'جامعة الملك سعود',
+    logo_letter: 'س',
+    logo_url: null,
+    description: 'شريك أكاديمي للربط المعرفي وإتاحة الفرص التدريبية لطلاب وخريجي الجامعة.',
+    mechanism: 'مشاركة بجناح تعريفي سنوي، تنسيق جلسات إرشاد مهني، وبناء ملتقى مهارات المستقبل.',
+    goal: 'ربط مخرجات التعليم باحتياجات سوق العمل وتدريب 150 طالب سنوياً.',
+    effectiveness_rate: 85, // مقياس الفاعلية 85%
+    status: 'active',
+    actions_done: [
+      'توقيع مذكرة التفاهم الأولية',
+      'جدولة ورش العمل المشتركة',
+    ],
+    created_at: '2026-10-10T09:00:00Z',
   },
   {
-    id: 'p-3',
-    partner_name: 'منشآت',
-    program_title: 'سلسلة دورات التمكين الرقمي',
-    program_type: 'course',
-    coordinator_id: '44444444-4444-4444-4444-444444444444', // دينا
-    start_date: '2027-01-10',
-    end_date: '2027-02-15',
-    status: 'planned',
-    notes: 'دورة مسجلة ومباشرة في التسويق بالمحتوى والنمو الرقمي',
+    id: 'prt-3',
+    name: 'هيئة منشآت',
+    logo_letter: 'م',
+    logo_url: null,
+    description: 'شريك تمكيني لدعم المشاريع الناشئة والريادية عبر منظومة الدعم والاستشارات.',
+    mechanism: 'إتاحة الوصول لمراكز دعم المنشآت، وتقديم استشارات أسبوعية مخصصة لرواد أعمال منصة الجوزاء.',
+    goal: 'تمكين 50 شركة ناشئة من الاستفادة من برامج التمويل والنمو.',
+    effectiveness_rate: 78, // مقياس الفاعلية 78%
+    status: 'active',
+    actions_done: [
+      'عقد الجلسة الافتتاحية للمستشارين',
+      'حصر الشركات المرشحة للاستشارات',
+    ],
+    created_at: '2026-10-20T10:00:00Z',
   },
 ];
 
 export const INITIAL_TASKS: Task[] = [
   {
     id: 't-1',
-    title: 'إعداد جدول الاجتماعات مع جامعة الملك سعود',
-    description: 'التواصل لتحديد المحاور ومواعيد الورش للجناح التعريفي لملتقى مهارات المستقبل',
+    title: 'إعداد جدول الاجتماعات مع ممثلي جامعة الملك سعود',
+    description: 'التواصل لتحديد المحاور ومواعيد الورش للجناح التعريفي لملتقى مهارات المستقبل 2026.',
     assigned_to: '22222222-2222-2222-2222-222222222222', // محمد
     goal_id: 'g-2',
-    partnership_id: 'p-2',
+    project_id: 'prj-2',
+    partner_id: 'prt-2',
     phase: 'planning',
     priority: 'urgent',
     status: 'in_progress',
@@ -137,11 +187,12 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: 't-2',
-    title: 'اعتماد قائمة المحاضرين لمعسكر ريادة الأعمال',
-    description: 'تم التواصل مع 4 مدربين وجمع السير الذاتية وحقائب التدريب وبانتظار اعتماد الأستاذة جوزاء',
+    title: 'اعتماد قائمة المحاضرين لمعسكر ريادة الأعمال مع طويق',
+    description: 'تم التواصل مع 4 مدربين وجمع السير الذاتية وحقائب التدريب وبانتظار اعتماد الأستاذة جوزاء.',
     assigned_to: '33333333-3333-3333-3333-333333333333', // ريهام
     goal_id: 'g-1',
-    partnership_id: 'p-1',
+    project_id: 'prj-2',
+    partner_id: 'prt-1',
     phase: 'review',
     priority: 'high',
     status: 'waiting_review',
@@ -156,11 +207,12 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: 't-3',
-    title: 'تصميم ونشر بوسترات الفعالية القادمة',
-    description: 'تجهيز 5 تصاميم لهوية الملتقى ومقاسات تويتر وإنستغرام ونشرها فور الاعتماد',
+    title: 'تصميم ونشر بوسترات الفعالية وهوية الدومين taska.aljouza.sa',
+    description: 'تجهيز تصاميم الإطلاق لموقع المهام ونشرها عبر الحسابات الرسمية لمنصة الجوزاء.',
     assigned_to: '44444444-4444-4444-4444-444444444444', // دينا
-    goal_id: 'g-1',
-    partnership_id: 'p-2',
+    goal_id: 'g-3',
+    project_id: 'prj-1',
+    partner_id: 'prt-1',
     phase: 'execution',
     priority: 'medium',
     status: 'in_progress',
@@ -175,11 +227,12 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: 't-4',
-    title: 'صياغة مسودة الشراكة الأولية ومراجعتها قانونياً',
-    description: 'كتابة بنود مذكرة التفاهم ومراجعتها من قبل المستشار القانوني',
+    title: 'صياغة مسودة الشراكة ومراجعة بنود التعاون مع منشآت',
+    description: 'كتابة بنود مذكرة التفاهم واعتماد نموذج المتابعة الدورية.',
     assigned_to: '22222222-2222-2222-2222-222222222222', // محمد
     goal_id: 'g-2',
-    partnership_id: 'p-1',
+    project_id: 'prj-2',
+    partner_id: 'prt-3',
     phase: 'closed',
     priority: 'high',
     status: 'done',
@@ -191,6 +244,26 @@ export const INITIAL_TASKS: Task[] = [
     symbol: 'W',
     is_starred: false,
     progress_pct: 6.80,
+  },
+  {
+    id: 't-5',
+    title: 'المراجعة الإدارية الشاملة لمؤشرات الأداء الربيعية',
+    description: 'مراجعة نسب تقدم الأهداف المستقبلية وتقييم أداء الشركاء من قبل الإدارة العامة.',
+    assigned_to: '11111111-1111-1111-1111-111111111111', // جوزاء (المدير)
+    goal_id: 'g-3',
+    project_id: 'prj-1',
+    partner_id: 'prt-1',
+    phase: 'closed',
+    priority: 'high',
+    status: 'done',
+    due_date: '2026-11-15',
+    manager_approved: true,
+    created_by: '11111111-1111-1111-1111-111111111111',
+    created_at: '2026-11-10T08:00:00Z',
+    updated_at: '2026-11-15T12:00:00Z',
+    symbol: 'J',
+    is_starred: true,
+    progress_pct: 19.5,
   },
 ];
 

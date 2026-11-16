@@ -5,7 +5,7 @@ import {
   getCurrentUser,
   getTasks,
   getGoals,
-  getPartnerships,
+  getPartners,
   getProfiles,
 } from '@/lib/supabase/actions';
 import { Header } from '@/components/layout/header';
@@ -13,13 +13,13 @@ import { ClonedTopCards } from '@/components/dashboard/cloned-top-cards';
 import { ClonedBottomSection } from '@/components/dashboard/cloned-bottom-section';
 import { TaskDrawer } from '@/components/tasks/task-drawer';
 import { CreateTaskModal } from '@/components/tasks/create-task-modal';
-import { Task, Goal, Partnership, Profile } from '@/lib/types/database';
+import { Task, Goal, Partner, Profile } from '@/lib/types/database';
 
 export default function AdminDashboardPage() {
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [partnerships, setPartnerships] = useState<Partnership[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,13 +33,13 @@ export default function AdminDashboardPage() {
         getCurrentUser(),
         getTasks(),
         getGoals(),
-        getPartnerships(),
+        getPartners(),
         getProfiles(),
       ]);
       setCurrentUser(u);
       setTasks(t);
       setGoals(g);
-      setPartnerships(p);
+      setPartners(p);
       setProfiles(pr);
     } finally {
       setLoading(false);
@@ -104,7 +104,6 @@ export default function AdminDashboardPage() {
         onClose={() => setCreateModalOpen(false)}
         profiles={profiles}
         goals={goals}
-        partnerships={partnerships}
         onTaskCreated={loadData}
       />
     </div>

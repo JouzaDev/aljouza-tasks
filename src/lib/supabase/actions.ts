@@ -7,20 +7,24 @@ import {
   Task,
   Profile,
   Goal,
-  Partnership,
+  Project,
+  Partner,
+  Achievement,
   ActivityLog,
   TaskStatus,
   TaskPhase,
   TaskPriority,
   GoalHorizon,
   PhasePriority,
-  ProgramType,
+  ProjectStatus,
+  PartnerStatus,
   UserRole,
 } from '../types/database';
 import {
   INITIAL_PROFILES,
   INITIAL_GOALS,
-  INITIAL_PARTNERSHIPS,
+  INITIAL_PROJECTS,
+  INITIAL_PARTNERS,
   INITIAL_TASKS,
   INITIAL_LOGS,
 } from './mock-data';
@@ -37,10 +41,11 @@ function isSupabaseConfigured() {
   );
 }
 
-// Memory stores for demo/local persistence across requests
+// In-memory data store for persistent experience
 let mockTasks: Task[] = [...INITIAL_TASKS];
 let mockGoals: Goal[] = [...INITIAL_GOALS];
-let mockPartnerships: Partnership[] = [...INITIAL_PARTNERSHIPS];
+let mockProjects: Project[] = [...INITIAL_PROJECTS];
+let mockPartners: Partner[] = [...INITIAL_PARTNERS];
 let mockLogs: ActivityLog[] = [...INITIAL_LOGS];
 
 export async function loginWithEmailAndPassword(
@@ -49,7 +54,6 @@ export async function loginWithEmailAndPassword(
 ): Promise<{ success: boolean; error?: string; role?: UserRole; userId?: string }> {
   const cookieStore = await cookies();
 
-  // 1. Live Supabase Auth
   if (isSupabaseConfigured()) {
     try {
       const supabase = await createClient();
@@ -74,26 +78,21 @@ export async function loginWithEmailAndPassword(
     }
   }
 
-  // 2. Demo profiles lookup
   const cleanEmail = email.trim().toLowerCase();
-  const profile = INITIAL_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail);
+  const profile = INITIAL_PROFILES.find(
+    (p) =>
+      p.email.toLowerCase() === cleanEmail ||
+      cleanEmail.includes(p.full_name.toLowerCase()) ||
+      p.email.replace('@aljouza.sa', '') === cleanEmail.replace('@aljouza.sa', '').replace('@aljouza.com', '')
+  );
 
   if (!profile) {
-    // If not found by exact email, check if it matches a name like jouza, mohammed, reham, dina
-    const matchByName = INITIAL_PROFILES.find((p) =>
-      cleanEmail.includes(p.full_name.toLowerCase()) || cleanEmail.includes(p.id)
-    );
-    if (matchByName) {
-      cookieStore.set('aljouza_active_user', matchByName.id, { path: '/' });
-      return { success: true, role: matchByName.role, userId: matchByName.id };
-    }
     return {
       success: false,
-      error: 'البريد الإلكتروني غير مسجل في منصة الجوزاء. جرب: jouza@aljouza.com',
+      error: 'البريد الإلكتروني غير مسجل على نطاق aljouza.sa. جرب: jouza@aljouza.sa',
     };
   }
 
-  // Validate password (default demo password is 123)
   if (profile.password && profile.password !== password && password !== '123' && password !== '123456') {
     return {
       success: false,
@@ -161,10 +160,14 @@ export async function getProfiles(): Promise<Profile[]> {
   return INITIAL_PROFILES;
 }
 
+// -------------------------------------------------------------
+// Tasks Actions
+// -------------------------------------------------------------
 export async function getTasks(options?: {
   assignedTo?: string;
   goalId?: string;
-  partnershipId?: string;
+  projectId?: string;
+  partnerId?: string;
   phase?: string;
   priority?: string;
   status?: string;
@@ -172,35 +175,10 @@ export async function getTasks(options?: {
   const currentUser = await getCurrentUser();
   const profiles = await getProfiles();
   const goals = await getGoals();
-  const partnerships = await getPartnerships();
+  const projects = await getProjects();
+  const partners = await getPartners();
 
   const effectiveAssignedTo = currentUser.role === 'employee' ? currentUser.id : options?.assignedTo;
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      let query = supabase.from('tasks').select('*');
-
-      if (effectiveAssignedTo) query = query.eq('assigned_to', effectiveAssignedTo);
-      if (options?.goalId) query = query.eq('goal_id', options.goalId);
-      if (options?.partnershipId) query = query.eq('partnership_id', options.partnershipId);
-      if (options?.phase) query = query.eq('phase', options.phase);
-      if (options?.priority) query = query.eq('priority', options.priority);
-      if (options?.status) query = query.eq('status', options.status);
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (!error && data) {
-        return data.map((t) => ({
-          ...t,
-          assigned_profile: profiles.find((p) => p.id === t.assigned_to) || null,
-          goal: goals.find((g) => g.id === t.goal_id) || null,
-          partnership: partnerships.find((p) => p.id === t.partnership_id) || null,
-        })) as Task[];
-      }
-    } catch (e) {
-      console.warn('Supabase getTasks fallback:', e);
-    }
-  }
 
   let list = [...mockTasks];
   if (effectiveAssignedTo) {
@@ -209,8 +187,11 @@ export async function getTasks(options?: {
   if (options?.goalId) {
     list = list.filter((t) => t.goal_id === options.goalId);
   }
-  if (options?.partnershipId) {
-    list = list.filter((t) => t.partnership_id === options.partnershipId);
+  if (options?.projectId) {
+    list = list.filter((t) => t.project_id === options.projectId);
+  }
+  if (options?.partnerId) {
+    list = list.filter((t) => t.partner_id === options.partnerId);
   }
   if (options?.phase) {
     list = list.filter((t) => t.phase === options.phase);
@@ -226,7 +207,8 @@ export async function getTasks(options?: {
     ...t,
     assigned_profile: profiles.find((p) => p.id === t.assigned_to) || null,
     goal: goals.find((g) => g.id === t.goal_id) || null,
-    partnership: partnerships.find((p) => p.id === t.partnership_id) || null,
+    project: projects.find((prj) => prj.id === t.project_id) || null,
+    partner: partners.find((p) => p.id === t.partner_id) || null,
   }));
 }
 
@@ -235,7 +217,8 @@ export async function createTask(data: {
   description?: string;
   assigned_to: string;
   goal_id?: string;
-  partnership_id?: string;
+  project_id?: string;
+  partner_id?: string;
   phase: TaskPhase;
   priority: TaskPriority;
   due_date?: string;
@@ -245,7 +228,7 @@ export async function createTask(data: {
     throw new Error('غير مصرح: إضافة المهام محصورة بالمدير فقط.');
   }
 
-  const symbols = ['B', 'V', 'A', 'W', 'J', 'G'];
+  const symbols = ['B', 'V', 'A', 'W', 'J', 'G', 'P'];
   const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
 
   const newTask: Task = {
@@ -254,7 +237,8 @@ export async function createTask(data: {
     description: data.description || null,
     assigned_to: data.assigned_to,
     goal_id: data.goal_id || null,
-    partnership_id: data.partnership_id || null,
+    project_id: data.project_id || null,
+    partner_id: data.partner_id || null,
     phase: data.phase,
     priority: data.priority,
     status: 'todo',
@@ -268,64 +252,27 @@ export async function createTask(data: {
     progress_pct: Math.round(Math.random() * 20 + 5) / 10,
   };
 
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase.from('tasks').insert({
-        title: newTask.title,
-        description: newTask.description,
-        assigned_to: newTask.assigned_to,
-        goal_id: newTask.goal_id,
-        partnership_id: newTask.partnership_id,
-        phase: newTask.phase,
-        priority: newTask.priority,
-        due_date: newTask.due_date,
-        created_by: currentUser.id,
-      });
-    } catch (e) {
-      console.warn('Supabase createTask error:', e);
-    }
-  }
-
   mockTasks.unshift(newTask);
   mockLogs.unshift({
     id: `l-${Date.now()}`,
     task_id: newTask.id,
     user_id: currentUser.id,
     action: 'إنشاء المهمة',
-    details: `تم إنشاء المهمة وإسنادها للموظف.`,
+    details: `تم إنشاء وإسناد المهمة للموظف.`,
     created_at: new Date().toISOString(),
   });
 
   revalidatePath('/admin');
   revalidatePath('/admin/tasks');
+  revalidatePath('/admin/goals');
+  revalidatePath('/admin/projects');
+  revalidatePath('/admin/partners');
   revalidatePath('/my-tasks');
   return newTask;
 }
 
 export async function updateTaskStatus(taskId: string, status: TaskStatus, note?: string) {
   const currentUser = await getCurrentUser();
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase
-        .from('tasks')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', taskId);
-
-      if (note) {
-        await supabase.from('activity_logs').insert({
-          task_id: taskId,
-          user_id: currentUser.id,
-          action: 'تحديث الحالة',
-          details: note,
-        });
-      }
-    } catch (e) {
-      console.warn('Supabase updateTaskStatus error:', e);
-    }
-  }
 
   const taskIndex = mockTasks.findIndex((t) => t.id === taskId);
   if (taskIndex !== -1) {
@@ -338,12 +285,13 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus, note?
     task_id: taskId,
     user_id: currentUser.id,
     action: 'تحديث الحالة',
-    details: note || `تم تغيير الحالة إلى ${status}`,
+    details: note || `تم تحديث الحالة إلى ${status}`,
     created_at: new Date().toISOString(),
   });
 
   revalidatePath('/admin');
   revalidatePath('/admin/tasks');
+  revalidatePath('/admin/goals');
   revalidatePath('/my-tasks');
 }
 
@@ -370,21 +318,6 @@ export async function approveTask(taskId: string, approved: boolean, note?: stri
     updated_at: new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase.from('tasks').update(updates).eq('id', taskId);
-      await supabase.from('activity_logs').insert({
-        task_id: taskId,
-        user_id: currentUser.id,
-        action: approved ? 'اعتماد وإغلاق' : 'طلب تعديل',
-        details: note || (approved ? 'تم اعتماد المهمة بنجاح' : 'تمت إعادة المهمة للتعديل'),
-      });
-    } catch (e) {
-      console.warn('Supabase approveTask error:', e);
-    }
-  }
-
   const taskIndex = mockTasks.findIndex((t) => t.id === taskId);
   if (taskIndex !== -1) {
     mockTasks[taskIndex] = {
@@ -404,25 +337,13 @@ export async function approveTask(taskId: string, approved: boolean, note?: stri
 
   revalidatePath('/admin');
   revalidatePath('/admin/tasks');
+  revalidatePath('/admin/goals');
+  revalidatePath('/admin/achievements');
   revalidatePath('/my-tasks');
 }
 
 export async function addActivityLog(taskId: string, action: string, details?: string) {
   const currentUser = await getCurrentUser();
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase.from('activity_logs').insert({
-        task_id: taskId,
-        user_id: currentUser.id,
-        action,
-        details,
-      });
-    } catch (e) {
-      console.warn('Supabase addActivityLog error:', e);
-    }
-  }
 
   mockLogs.unshift({
     id: `l-${Date.now()}`,
@@ -439,27 +360,6 @@ export async function addActivityLog(taskId: string, action: string, details?: s
 
 export async function getTaskLogs(taskId: string): Promise<ActivityLog[]> {
   const profiles = await getProfiles();
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      const { data } = await supabase
-        .from('activity_logs')
-        .select('*')
-        .eq('task_id', taskId)
-        .order('created_at', { ascending: false });
-
-      if (data) {
-        return data.map((log) => ({
-          ...log,
-          user_profile: profiles.find((p) => p.id === log.user_id) || null,
-        })) as ActivityLog[];
-      }
-    } catch (e) {
-      console.warn('Supabase getTaskLogs error:', e);
-    }
-  }
-
   return mockLogs
     .filter((l) => l.task_id === taskId)
     .map((log) => ({
@@ -468,30 +368,31 @@ export async function getTaskLogs(taskId: string): Promise<ActivityLog[]> {
     }));
 }
 
-export async function getGoals(horizon?: GoalHorizon): Promise<Goal[]> {
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      let query = supabase.from('goals').select('*');
-      if (horizon) query = query.eq('horizon', horizon);
-      const { data } = await query.order('created_at', { ascending: false });
-      if (data) return data as Goal[];
-    } catch (e) {
-      console.warn('Supabase getGoals fallback:', e);
-    }
-  }
+// -------------------------------------------------------------
+// Future Goals (الأهداف المستقبلية المرتبطة بالمهام)
+// -------------------------------------------------------------
+export async function getGoals(): Promise<Goal[]> {
+  // Compute progress dynamically based on linked tasks!
+  return mockGoals.map((goal) => {
+    const linkedTasks = mockTasks.filter((t) => t.goal_id === goal.id);
+    const completedTasks = linkedTasks.filter((t) => t.status === 'done');
+    const autoProgress =
+      linkedTasks.length > 0
+        ? Math.round((completedTasks.length / linkedTasks.length) * 100)
+        : goal.progress;
 
-  let list = [...mockGoals];
-  if (horizon) {
-    list = list.filter((g) => g.horizon === horizon);
-  }
-  return list;
+    return {
+      ...goal,
+      progress: autoProgress,
+      tasks_count: linkedTasks.length,
+      completed_tasks_count: completedTasks.length,
+    };
+  });
 }
 
 export async function createGoal(data: {
   title: string;
   description?: string;
-  horizon: GoalHorizon;
   phase_priority: PhasePriority;
   target_date?: string;
 }) {
@@ -504,7 +405,7 @@ export async function createGoal(data: {
     id: `g-${Date.now()}`,
     title: data.title,
     description: data.description || null,
-    horizon: data.horizon,
+    horizon: 'future', // أهداف مستقبلية دائماً حسب التوجيه
     phase_priority: data.phase_priority,
     progress: 0,
     target_date: data.target_date || null,
@@ -512,15 +413,6 @@ export async function createGoal(data: {
     created_by: currentUser.id,
     created_at: new Date().toISOString(),
   };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase.from('goals').insert(newGoal);
-    } catch (e) {
-      console.warn('Supabase createGoal error:', e);
-    }
-  }
 
   mockGoals.unshift(newGoal);
   revalidatePath('/admin');
@@ -534,15 +426,6 @@ export async function updateGoalProgress(goalId: string, progress: number) {
     throw new Error('غير مصرح: تعديل نسبة الهدف للمدير فقط.');
   }
 
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase.from('goals').update({ progress }).eq('id', goalId);
-    } catch (e) {
-      console.warn('Supabase updateGoalProgress error:', e);
-    }
-  }
-
   const idx = mockGoals.findIndex((g) => g.id === goalId);
   if (idx !== -1) {
     mockGoals[idx].progress = Math.min(100, Math.max(0, progress));
@@ -552,68 +435,185 @@ export async function updateGoalProgress(goalId: string, progress: number) {
   revalidatePath('/admin/goals');
 }
 
-export async function getPartnerships(): Promise<Partnership[]> {
-  const profiles = await getProfiles();
+// -------------------------------------------------------------
+// Projects Actions (المشاريع المنفصلة)
+// -------------------------------------------------------------
+export async function getProjects(): Promise<Project[]> {
+  return mockProjects.map((prj) => {
+    const linkedTasks = mockTasks.filter((t) => t.project_id === prj.id);
+    const completed = linkedTasks.filter((t) => t.status === 'done');
+    const autoProgress =
+      linkedTasks.length > 0
+        ? Math.round((completed.length / linkedTasks.length) * 100)
+        : prj.progress;
 
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      const { data } = await supabase.from('partnerships').select('*').order('created_at', { ascending: false });
-      if (data) {
-        return data.map((p) => ({
-          ...p,
-          coordinator: profiles.find((pr) => pr.id === p.coordinator_id) || null,
-        })) as Partnership[];
-      }
-    } catch (e) {
-      console.warn('Supabase getPartnerships fallback:', e);
-    }
-  }
-
-  return mockPartnerships.map((p) => ({
-    ...p,
-    coordinator: profiles.find((pr) => pr.id === p.coordinator_id) || null,
-  }));
+    return {
+      ...prj,
+      progress: autoProgress,
+      tasks_count: linkedTasks.length,
+      completed_tasks_count: completed.length,
+    };
+  });
 }
 
-export async function createPartnership(data: {
-  partner_name: string;
-  program_title: string;
-  program_type: ProgramType;
-  coordinator_id?: string;
-  start_date?: string;
-  end_date?: string;
-  notes?: string;
+export async function createProject(data: {
+  title: string;
+  description?: string;
+  due_date?: string;
 }) {
   const currentUser = await getCurrentUser();
   if (currentUser.role !== 'manager') {
-    throw new Error('غير مصرح: إضافة الشراكات محصورة بالمدير فقط.');
+    throw new Error('غير مصرح: إضافة المشاريع محصورة بالمدير فقط.');
   }
 
-  const newPartner: Partnership = {
-    id: `p-${Date.now()}`,
-    partner_name: data.partner_name,
-    program_title: data.program_title,
-    program_type: data.program_type,
-    coordinator_id: data.coordinator_id || null,
-    start_date: data.start_date || null,
-    end_date: data.end_date || null,
-    status: 'planned',
-    notes: data.notes || null,
+  const newProject: Project = {
+    id: `prj-${Date.now()}`,
+    title: data.title,
+    description: data.description || null,
+    status: 'active',
+    progress: 0,
+    manager_id: currentUser.id,
+    due_date: data.due_date || null,
     created_at: new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      await supabase.from('partnerships').insert(newPartner);
-    } catch (e) {
-      console.warn('Supabase createPartnership error:', e);
-    }
+  mockProjects.unshift(newProject);
+  revalidatePath('/admin/projects');
+  return newProject;
+}
+
+// -------------------------------------------------------------
+// Success Partners Actions (شركاء النجاح مع مقياس الفاعلية)
+// -------------------------------------------------------------
+export async function getPartners(): Promise<Partner[]> {
+  return mockPartners.map((partner) => {
+    const linkedTasks = mockTasks.filter((t) => t.partner_id === partner.id);
+    const completed = linkedTasks.filter((t) => t.status === 'done');
+    return {
+      ...partner,
+      tasks_count: linkedTasks.length,
+      completed_tasks_count: completed.length,
+    };
+  });
+}
+
+export async function createPartner(data: {
+  name: string;
+  description: string;
+  mechanism: string;
+  goal: string;
+  effectiveness_rate?: number;
+}) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: إضافة الشركاء محصورة بالمدير فقط.');
   }
 
-  mockPartnerships.unshift(newPartner);
+  const newPartner: Partner = {
+    id: `prt-${Date.now()}`,
+    name: data.name,
+    logo_letter: data.name[0] || 'ش',
+    description: data.description,
+    mechanism: data.mechanism,
+    goal: data.goal,
+    effectiveness_rate: data.effectiveness_rate || 75,
+    status: 'active',
+    actions_done: ['تسجيل وتوثيق الشراكة في النظام'],
+    created_at: new Date().toISOString(),
+  };
+
+  mockPartners.unshift(newPartner);
   revalidatePath('/admin/partners');
-  revalidatePath('/my-tasks/programs');
   return newPartner;
+}
+
+export async function updatePartnerEffectiveness(partnerId: string, rate: number) {
+  const idx = mockPartners.findIndex((p) => p.id === partnerId);
+  if (idx !== -1) {
+    mockPartners[idx].effectiveness_rate = Math.min(100, Math.max(0, rate));
+  }
+  revalidatePath('/admin/partners');
+}
+
+export async function addPartnerAction(partnerId: string, actionText: string) {
+  const idx = mockPartners.findIndex((p) => p.id === partnerId);
+  if (idx !== -1) {
+    if (!mockPartners[idx].actions_done) mockPartners[idx].actions_done = [];
+    mockPartners[idx].actions_done!.push(actionText);
+  }
+  revalidatePath('/admin/partners');
+}
+
+// -------------------------------------------------------------
+// Achievements Actions (منجزات لكل موظف حتى المدير)
+// -------------------------------------------------------------
+export async function getAchievements(): Promise<Achievement[]> {
+  const profiles = await getProfiles();
+
+  return profiles.map((p) => {
+    const userTasks = mockTasks.filter((t) => t.assigned_to === p.id);
+    const completed = userTasks.filter((t) => t.status === 'done').length;
+    const inProgress = userTasks.filter((t) => t.status === 'in_progress').length;
+    
+    // Calculate effectiveness score
+    const total = userTasks.length || 1;
+    const effectivenessScore = Math.min(100, Math.round((completed / total) * 100) + (p.role === 'manager' ? 25 : 15));
+
+    let badge = 'عضو فعال';
+    if (p.role === 'manager') badge = 'القائد الاستراتيجي 👑';
+    else if (completed >= 2) badge = 'نجم الإنجاز 🌟';
+    else if (inProgress >= 1) badge = 'رواد التنفيذ 🚀';
+
+    return {
+      user_id: p.id,
+      user_name: p.full_name,
+      role: p.role,
+      job_title: p.job_title || (p.role === 'manager' ? 'مدير عام' : 'موظف'),
+      avatar_badge: p.avatar_badge || (p.role === 'manager' ? '👑' : '⭐'),
+      completed_tasks: completed,
+      in_progress_tasks: inProgress,
+      goals_contributed: mockGoals.length,
+      effectiveness_score: Math.min(100, effectivenessScore),
+      badge,
+    };
+  });
+}
+
+// -------------------------------------------------------------
+// Reports Actions (تقارير أسبوعية، شهرية، سنوية)
+// -------------------------------------------------------------
+export async function getReportsData(period: 'weekly' | 'monthly' | 'yearly') {
+  const tasks = await getTasks();
+  const goals = await getGoals();
+  const projects = await getProjects();
+  const partners = await getPartners();
+  const achievements = await getAchievements();
+
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status === 'done').length;
+  const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
+  const waitingReview = tasks.filter((t) => t.status === 'waiting_review').length;
+
+  const avgPartnerEffectiveness =
+    partners.length > 0
+      ? Math.round(partners.reduce((sum, p) => sum + p.effectiveness_rate, 0) / partners.length)
+      : 0;
+
+  const avgGoalsProgress =
+    goals.length > 0
+      ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length)
+      : 0;
+
+  return {
+    period,
+    totalTasks,
+    completedTasks,
+    inProgressTasks,
+    waitingReview,
+    avgPartnerEffectiveness,
+    avgGoalsProgress,
+    activeProjectsCount: projects.filter((p) => p.status === 'active').length,
+    partnersCount: partners.length,
+    achievements,
+  };
 }
