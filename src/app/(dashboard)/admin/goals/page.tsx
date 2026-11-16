@@ -5,9 +5,10 @@ import {
   getCurrentUser,
   getGoals,
   createGoal,
+  updateGoal,
+  deleteGoal,
   getTasks,
   getProfiles,
-  getPartners,
 } from '@/lib/supabase/actions';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,9 @@ import {
   Clock,
   Plus,
   Sparkles,
-  Link as LinkIcon,
+  Edit2,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Goal, Profile, Task, PhasePriority } from '@/lib/types/database';
 
@@ -32,17 +35,32 @@ export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [createGoalOpen, setCreateGoalOpen] = useState(false);
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [selectedGoalId, setSelectedGoalId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
-  // Form states
+  // Modal: Create Goal
+  const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<PhasePriority>('high');
   const [targetDate, setTargetDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal: Edit Goal
+  const [editGoalOpen, setEditGoalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPriority, setEditPriority] = useState<PhasePriority>('high');
+  const [editTargetDate, setEditTargetDate] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'completed' | 'paused'>('active');
+
+  // Modal: Delete Goal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
+
+  // Modal: Link Task to Goal
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | undefined>(undefined);
 
   const loadData = async () => {
     try {
@@ -97,18 +115,67 @@ export default function GoalsPage() {
     }
   };
 
+  const handleOpenEdit = (goal: Goal) => {
+    setEditingGoal(goal);
+    setEditTitle(goal.title);
+    setEditDescription(goal.description || '');
+    setEditPriority(goal.phase_priority);
+    setEditTargetDate(goal.target_date || '');
+    setEditStatus(goal.status);
+    setEditGoalOpen(true);
+  };
+
+  const handleUpdateGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGoal || !editTitle.trim()) return;
+
+    setSubmitting(true);
+    try {
+      await updateGoal(editingGoal.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || undefined,
+        phase_priority: editPriority,
+        target_date: editTargetDate || undefined,
+        status: editStatus,
+      });
+      setEditGoalOpen(false);
+      setEditingGoal(null);
+      await loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenDelete = (goalId: string) => {
+    setDeletingGoalId(goalId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteGoal = async () => {
+    if (!deletingGoalId) return;
+    setSubmitting(true);
+    try {
+      await deleteGoal(deletingGoalId);
+      setDeleteModalOpen(false);
+      setDeletingGoalId(null);
+      await loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleOpenTaskForGoal = (goalId: string) => {
     setSelectedGoalId(goalId);
     setCreateTaskOpen(true);
   };
 
   const priorityMap: Record<
-    string,
-    { label: string; variant: 'rose' | 'amber' | 'blue' | 'slate' }
+    PhasePriority,
+    { label: string; variant: 'rose' | 'amber' | 'emerald' | 'purple' | 'slate' }
   > = {
-    critical: { label: 'أولوية حرجة', variant: 'rose' },
+    critical: { label: 'حرجة جداً', variant: 'rose' },
     high: { label: 'أولوية عالية', variant: 'amber' },
-    medium: { label: 'أولوية متوسطة', variant: 'blue' },
+    medium: { label: 'أولوية متوسطة', variant: 'purple' },
     low: { label: 'أولوية منخفضة', variant: 'slate' },
   };
 
@@ -120,15 +187,15 @@ export default function GoalsPage() {
         pendingReviewCount={tasks.filter((t) => t.status === 'waiting_review').length}
       />
 
-      {/* Top Banner */}
+      {/* Top Banner & Action */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-[#f1f3f7] shadow-xs">
         <div>
           <h2 className="text-xl font-extrabold text-[#18181c] flex items-center gap-2">
             <Target className="w-6 h-6 text-[#7c3aed]" />
-            <span>الأهداف المستقبلية (مربوطة بالمهام الحالية)</span>
+            <span>الأهداف المستقبلية (OKRs)</span>
           </h2>
           <p className="text-xs text-[#8a94a6] mt-0.5">
-            يتم احتساب مستوى تقدم كل هدف تلقائياً بناءً على نسبة المهام المنجزة المرتبطة به
+            ربط الأهداف المستقبلية بالمهام اليومية لاحتساب نسبة التقدم بدقة
           </p>
         </div>
 
@@ -139,13 +206,13 @@ export default function GoalsPage() {
             size="md"
             icon={<PlusCircle className="w-5 h-5 text-amber-300" />}
           >
-            إضافة هدف مستقبلي
+            إضافة هدف مستقبلي جديد
           </Button>
         )}
       </div>
 
       {/* Goals Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {goals.map((goal) => {
           const linkedTasks = tasks.filter((t) => t.goal_id === goal.id);
           const completedCount = linkedTasks.filter((t) => t.status === 'done').length;
@@ -154,28 +221,48 @@ export default function GoalsPage() {
           return (
             <div
               key={goal.id}
-              className="bg-white rounded-3xl p-6 border border-[#f1f3f7] hover:border-[#ddd6fe] shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+              className="bg-white rounded-3xl p-5 border border-[#f1f3f7] hover:border-[#ddd6fe] shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
             >
               <div>
-                {/* Badges & Date */}
+                {/* Badges & Actions */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
                     <Badge variant={pBadge.variant} size="sm">
                       {pBadge.label}
                     </Badge>
-                    <Badge variant="purple" size="sm">
-                      هدف استراتيجي
+                    <Badge variant={goal.status === 'completed' ? 'emerald' : 'purple'} size="sm">
+                      {goal.status === 'completed' ? 'مكتمل' : 'هدف استراتيجي'}
                     </Badge>
                   </div>
-                  {goal.target_date && (
-                    <span className="text-xs text-[#8a94a6] flex items-center gap-1 font-medium">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{goal.target_date}</span>
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {goal.target_date && (
+                      <span className="text-xs text-[#8a94a6] flex items-center gap-1 font-medium ml-2">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{goal.target_date}</span>
+                      </span>
+                    )}
+                    {isManager && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEdit(goal)}
+                          className="p-1.5 rounded-xl hover:bg-[#f4f7fb] text-[#8a94a6] hover:text-[#7c3aed] transition-colors cursor-pointer"
+                          title="تعديل الهدف"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenDelete(goal.id)}
+                          className="p-1.5 rounded-xl hover:bg-rose-50 text-[#8a94a6] hover:text-rose-600 transition-colors cursor-pointer"
+                          title="حذف الهدف"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <h3 className="text-lg font-extrabold text-[#18181c] mb-2">{goal.title}</h3>
+                <h3 className="text-base font-extrabold text-[#18181c] mb-2">{goal.title}</h3>
 
                 {goal.description && (
                   <p className="text-xs text-[#627084] leading-relaxed mb-4">
@@ -184,7 +271,7 @@ export default function GoalsPage() {
                 )}
 
                 {/* Progress Bar (Auto computed from linked tasks) */}
-                <div className="p-4 rounded-2xl bg-[#f8fafd] border border-[#e2e8f0] mb-4 space-y-2">
+                <div className="p-3.5 rounded-2xl bg-[#f8fafd] border border-[#e2e8f0] mb-4 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span className="text-[#627084] flex items-center gap-1.5">
                       <TrendingUp className="w-4 h-4 text-[#7c3aed]" />
@@ -193,7 +280,7 @@ export default function GoalsPage() {
                     <span className="text-[#18181c] text-sm">{goal.progress}%</span>
                   </div>
 
-                  <div className="w-full h-3 bg-[#e2e8f0] rounded-full overflow-hidden">
+                  <div className="w-full h-2.5 bg-[#e2e8f0] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-linear-to-r from-[#7c3aed] to-[#38bdf8] rounded-full transition-all duration-500"
                       style={{ width: `${goal.progress}%` }}
@@ -338,7 +425,7 @@ export default function GoalsPage() {
               variant="primary"
               size="md"
               isLoading={submitting}
-              icon={<Target className="w-4 h-4" />}
+              icon={<PlusCircle className="w-4 h-4" />}
             >
               حفظ الهدف
             </Button>
@@ -346,18 +433,145 @@ export default function GoalsPage() {
         </form>
       </Modal>
 
+      {/* Modal: Edit Goal */}
+      <Modal
+        isOpen={editGoalOpen}
+        onClose={() => setEditGoalOpen(false)}
+        title="تعديل الهدف المستقبلي"
+        description="تحديث بيانات الهدف ومؤشرات نجاحه"
+      >
+        <form onSubmit={handleUpdateGoal} className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+              عنوان الهدف <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+              التفاصيل
+            </label>
+            <textarea
+              rows={3}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd] resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-[#18181c] mb-1.5">الأولوية</label>
+              <select
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value as PhasePriority)}
+                className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+              >
+                <option value="critical">حرجة جداً</option>
+                <option value="high">عالية</option>
+                <option value="medium">متوسطة</option>
+                <option value="low">منخفضة</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-[#18181c] mb-1.5">الحالة</label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as any)}
+                className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+              >
+                <option value="active">نشط</option>
+                <option value="completed">مكتمل</option>
+                <option value="paused">معلق مؤقتاً</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+              تاريخ الاستهداف
+            </label>
+            <input
+              type="date"
+              value={editTargetDate}
+              onChange={(e) => setEditTargetDate(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#f1f3f7]">
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={() => setEditGoalOpen(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              isLoading={submitting}
+            >
+              حفظ التعديلات
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Delete Goal Confirmation */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="تأكيد حذف الهدف المستقبلي"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200">
+            <AlertTriangle className="w-6 h-6 shrink-0 text-rose-600" />
+            <p className="text-xs leading-relaxed">
+              هل أنت متأكد من رغبتك في حذف هذا الهدف؟ سيتم فك ارتباط أي مهام مربوطة به دون حذفها.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setDeleteModalOpen(false)}
+            >
+              تراجع
+            </Button>
+            <Button
+              variant="danger"
+              size="md"
+              isLoading={submitting}
+              onClick={handleDeleteGoal}
+              icon={<Trash2 className="w-4 h-4" />}
+            >
+              حذف نهائي
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal: Create Task for this Goal */}
       <CreateTaskModal
         isOpen={createTaskOpen}
-        onClose={() => {
-          setCreateTaskOpen(false);
-          setSelectedGoalId(undefined);
-        }}
+        onClose={() => setCreateTaskOpen(false)}
+        onTaskCreated={loadData}
         profiles={profiles}
         goals={goals}
-        partnerships={[]}
-        defaultGoalId={selectedGoalId}
-        onTaskCreated={loadData}
+        partners={[]}
+        preselectedGoalId={selectedGoalId}
       />
     </div>
   );

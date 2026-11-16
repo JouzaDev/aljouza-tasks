@@ -142,6 +142,10 @@ export async function getCurrentUser(): Promise<Profile> {
 }
 
 export async function switchDemoUser(userId: string) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: التنقل بين حسابات الموظفين متاح للمدير فقط.');
+  }
   const cookieStore = await cookies();
   cookieStore.set('aljouza_active_user', userId, { path: '/' });
   revalidatePath('/', 'layout');
@@ -295,6 +299,93 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus, note?
   revalidatePath('/my-tasks');
 }
 
+export async function updateTask(
+  taskId: string,
+  data: {
+    title?: string;
+    description?: string;
+    assigned_to?: string;
+    goal_id?: string | null;
+    project_id?: string | null;
+    partner_id?: string | null;
+    phase?: TaskPhase;
+    priority?: TaskPriority;
+    status?: TaskStatus;
+    due_date?: string | null;
+  }
+) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: تعديل بيانات المهمة متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase
+        .from('tasks')
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', taskId);
+    } catch (e) {
+      console.warn('Supabase updateTask error:', e);
+    }
+  }
+
+  const idx = mockTasks.findIndex((t) => t.id === taskId);
+  if (idx !== -1) {
+    mockTasks[idx] = {
+      ...mockTasks[idx],
+      ...data,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  mockLogs.unshift({
+    id: `l-${Date.now()}`,
+    task_id: taskId,
+    user_id: currentUser.id,
+    action: 'تعديل المهمة',
+    details: 'تم تحديث بيانات وتفاصيل المهمة.',
+    created_at: new Date().toISOString(),
+  });
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/tasks');
+  revalidatePath('/admin/goals');
+  revalidatePath('/admin/projects');
+  revalidatePath('/admin/partners');
+  revalidatePath('/my-tasks');
+}
+
+export async function deleteTask(taskId: string) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: حذف المهمة متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('tasks').delete().eq('id', taskId);
+    } catch (e) {
+      console.warn('Supabase deleteTask error:', e);
+    }
+  }
+
+  mockTasks = mockTasks.filter((t) => t.id !== taskId);
+  mockLogs = mockLogs.filter((l) => l.task_id !== taskId);
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/tasks');
+  revalidatePath('/admin/goals');
+  revalidatePath('/admin/projects');
+  revalidatePath('/admin/partners');
+  revalidatePath('/my-tasks');
+}
+
 export async function toggleTaskStar(taskId: string) {
   const taskIndex = mockTasks.findIndex((t) => t.id === taskId);
   if (taskIndex !== -1) {
@@ -435,6 +526,67 @@ export async function updateGoalProgress(goalId: string, progress: number) {
   revalidatePath('/admin/goals');
 }
 
+export async function updateGoal(
+  goalId: string,
+  data: {
+    title?: string;
+    description?: string;
+    horizon?: GoalHorizon;
+    phase_priority?: PhasePriority;
+    progress?: number;
+    target_date?: string;
+    status?: 'active' | 'completed' | 'paused';
+  }
+) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: تعديل الأهداف متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('goals').update(data).eq('id', goalId);
+    } catch (e) {
+      console.warn('Supabase updateGoal error:', e);
+    }
+  }
+
+  const idx = mockGoals.findIndex((g) => g.id === goalId);
+  if (idx !== -1) {
+    mockGoals[idx] = { ...mockGoals[idx], ...data };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/goals');
+  revalidatePath('/admin/tasks');
+}
+
+export async function deleteGoal(goalId: string) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: حذف الأهداف متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('goals').delete().eq('id', goalId);
+    } catch (e) {
+      console.warn('Supabase deleteGoal error:', e);
+    }
+  }
+
+  mockGoals = mockGoals.filter((g) => g.id !== goalId);
+  mockTasks.forEach((t) => {
+    if (t.goal_id === goalId) t.goal_id = null;
+  });
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/goals');
+  revalidatePath('/admin/tasks');
+}
+
 // -------------------------------------------------------------
 // Projects Actions (المشاريع المنفصلة)
 // -------------------------------------------------------------
@@ -480,6 +632,63 @@ export async function createProject(data: {
   mockProjects.unshift(newProject);
   revalidatePath('/admin/projects');
   return newProject;
+}
+
+export async function updateProject(
+  projectId: string,
+  data: {
+    title?: string;
+    description?: string;
+    status?: ProjectStatus;
+    progress?: number;
+    due_date?: string;
+  }
+) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: تعديل المشاريع متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('projects').update(data).eq('id', projectId);
+    } catch (e) {
+      console.warn('Supabase updateProject error:', e);
+    }
+  }
+
+  const idx = mockProjects.findIndex((p) => p.id === projectId);
+  if (idx !== -1) {
+    mockProjects[idx] = { ...mockProjects[idx], ...data };
+  }
+
+  revalidatePath('/admin/projects');
+  revalidatePath('/admin/tasks');
+}
+
+export async function deleteProject(projectId: string) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: حذف المشاريع متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('projects').delete().eq('id', projectId);
+    } catch (e) {
+      console.warn('Supabase deleteProject error:', e);
+    }
+  }
+
+  mockProjects = mockProjects.filter((p) => p.id !== projectId);
+  mockTasks.forEach((t) => {
+    if (t.project_id === projectId) t.project_id = null;
+  });
+
+  revalidatePath('/admin/projects');
+  revalidatePath('/admin/tasks');
 }
 
 // -------------------------------------------------------------
@@ -541,6 +750,93 @@ export async function addPartnerAction(partnerId: string, actionText: string) {
     if (!mockPartners[idx].actions_done) mockPartners[idx].actions_done = [];
     mockPartners[idx].actions_done!.push(actionText);
   }
+  revalidatePath('/admin/partners');
+}
+
+export async function updatePartner(
+  partnerId: string,
+  data: {
+    name?: string;
+    logo_letter?: string;
+    description?: string;
+    mechanism?: string;
+    goal?: string;
+    effectiveness_rate?: number;
+    status?: PartnerStatus;
+  }
+) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: تعديل بيانات الشركاء متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('partners').update(data).eq('id', partnerId);
+    } catch (e) {
+      console.warn('Supabase updatePartner error:', e);
+    }
+  }
+
+  const idx = mockPartners.findIndex((p) => p.id === partnerId);
+  if (idx !== -1) {
+    mockPartners[idx] = { ...mockPartners[idx], ...data };
+  }
+
+  revalidatePath('/admin/partners');
+  revalidatePath('/admin/tasks');
+}
+
+export async function deletePartner(partnerId: string) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: حذف الشركاء متاح للمدير فقط.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = await createClient();
+      await supabase.from('partners').delete().eq('id', partnerId);
+    } catch (e) {
+      console.warn('Supabase deletePartner error:', e);
+    }
+  }
+
+  mockPartners = mockPartners.filter((p) => p.id !== partnerId);
+  mockTasks.forEach((t) => {
+    if (t.partner_id === partnerId) t.partner_id = null;
+  });
+
+  revalidatePath('/admin/partners');
+  revalidatePath('/admin/tasks');
+}
+
+export async function deletePartnerAction(partnerId: string, actionIndex: number) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== 'manager') {
+    throw new Error('غير مصرح: حذف منجزات الشركاء متاح للمدير فقط.');
+  }
+
+  const partner = mockPartners.find((p) => p.id === partnerId);
+  if (partner && partner.actions_done) {
+    partner.actions_done.splice(actionIndex, 1);
+  }
+
+  if (isSupabaseConfigured() && partner) {
+    try {
+      const supabase = await createClient();
+      await supabase
+        .from('partners')
+        .update({
+          actions_done: partner.actions_done,
+        })
+        .eq('id', partnerId);
+    } catch (e) {
+      console.warn('Supabase deletePartnerAction error:', e);
+    }
+  }
+
   revalidatePath('/admin/partners');
 }
 

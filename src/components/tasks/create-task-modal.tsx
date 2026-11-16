@@ -12,11 +12,16 @@ interface CreateTaskModalProps {
   onClose: () => void;
   profiles: Profile[];
   goals: Goal[];
+  partners?: Partner[];
+  projects?: Project[];
   partnerships?: any[];
   onTaskCreated?: () => void;
   defaultPartnershipId?: string;
   defaultGoalId?: string;
   defaultProjectId?: string;
+  preselectedGoalId?: string;
+  preselectedPartnerId?: string;
+  preselectedProjectId?: string;
 }
 
 export function CreateTaskModal({
@@ -24,39 +29,41 @@ export function CreateTaskModal({
   onClose,
   profiles,
   goals,
+  partners,
+  projects,
   onTaskCreated,
   defaultPartnershipId,
   defaultGoalId,
   defaultProjectId,
+  preselectedGoalId,
+  preselectedPartnerId,
+  preselectedProjectId,
 }: CreateTaskModalProps) {
   const employees = profiles.filter((p) => p.role === 'employee');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignedTo, setAssignedTo] = useState(employees[0]?.id || profiles[0]?.id || '');
-  const [goalId, setGoalId] = useState(defaultGoalId || '');
-  const [projectId, setProjectId] = useState(defaultProjectId || '');
-  const [partnerId, setPartnerId] = useState(defaultPartnershipId || '');
+  const [goalId, setGoalId] = useState(preselectedGoalId || defaultGoalId || '');
+  const [projectId, setProjectId] = useState(preselectedProjectId || defaultProjectId || '');
+  const [partnerId, setPartnerId] = useState(preselectedPartnerId || defaultPartnershipId || '');
   const [phase, setPhase] = useState<TaskPhase>('planning');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [projectsList, setProjectsList] = useState<Project[]>([]);
-  const [partnersList, setPartnersList] = useState<Partner[]>([]);
+  const [projectsList, setProjectsList] = useState<Project[]>(projects || []);
+  const [partnersList, setPartnersList] = useState<Partner[]>(partners || []);
 
   useEffect(() => {
     if (isOpen) {
-      getProjects().then((p) => setProjectsList(p));
-      getPartners().then((prt) => setPartnersList(prt));
+      if (preselectedGoalId || defaultGoalId) setGoalId(preselectedGoalId || defaultGoalId || '');
+      if (preselectedPartnerId || defaultPartnershipId) setPartnerId(preselectedPartnerId || defaultPartnershipId || '');
+      if (preselectedProjectId || defaultProjectId) setProjectId(preselectedProjectId || defaultProjectId || '');
+      if (!projects) getProjects().then((p) => setProjectsList(p));
+      if (!partners) getPartners().then((p) => setPartnersList(p));
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (defaultGoalId) setGoalId(defaultGoalId);
-    if (defaultPartnershipId) setPartnerId(defaultPartnershipId);
-    if (defaultProjectId) setProjectId(defaultProjectId);
-  }, [defaultGoalId, defaultPartnershipId, defaultProjectId]);
+  }, [isOpen, preselectedGoalId, preselectedPartnerId, preselectedProjectId, defaultGoalId, defaultPartnershipId, defaultProjectId, projects, partners]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

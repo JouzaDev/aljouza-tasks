@@ -146,31 +146,36 @@ export function Header({
                 </div>
               </div>
 
-              <div className="px-3 py-1 text-[11px] font-bold text-[#8a94a6]">
-                تبديل المستخدم (فريق العمل):
-              </div>
-
-              {INITIAL_PROFILES.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleSwitchUser(p.id)}
-                  className={`w-full flex items-center justify-between p-2 rounded-2xl text-xs transition-colors cursor-pointer ${
-                    p.id === currentUser.id
-                      ? 'bg-[#f5f0ff] text-[#7c3aed] font-bold'
-                      : 'hover:bg-[#f4f7fb] text-[#18181c]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#fed7aa] flex items-center justify-center text-xs">
-                      {p.avatar_badge || p.full_name[0]}
-                    </span>
-                    <span>{p.full_name}</span>
+              {/* Only Manager can switch accounts */}
+              {isManager && (
+                <>
+                  <div className="px-3 py-1 text-[11px] font-bold text-[#8a94a6]">
+                    تبديل المستخدم (فريق العمل):
                   </div>
-                  <span className="text-[10px] text-[#8a94a6]">
-                    {p.role === 'manager' ? 'مدير' : 'موظف'}
-                  </span>
-                </button>
-              ))}
+
+                  {INITIAL_PROFILES.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleSwitchUser(p.id)}
+                      className={`w-full flex items-center justify-between p-2 rounded-2xl text-xs transition-colors cursor-pointer ${
+                        p.id === currentUser.id
+                          ? 'bg-[#f5f0ff] text-[#7c3aed] font-bold'
+                          : 'hover:bg-[#f4f7fb] text-[#18181c]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-[#fed7aa] flex items-center justify-center text-xs">
+                          {p.avatar_badge || p.full_name[0]}
+                        </span>
+                        <span>{p.full_name}</span>
+                      </div>
+                      <span className="text-[10px] text-[#8a94a6]">
+                        {p.role === 'manager' ? 'مدير' : p.job_title}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
 
               <div className="pt-2 mt-2 border-t border-[#f1f3f7]">
                 <button

@@ -5,6 +5,8 @@ import {
   getCurrentUser,
   getProjects,
   createProject,
+  updateProject,
+  deleteProject,
   getTasks,
 } from '@/lib/supabase/actions';
 import { Header } from '@/components/layout/header';
@@ -18,22 +20,37 @@ import {
   CheckCircle2,
   TrendingUp,
   FolderGit2,
-  Clock,
+  Edit2,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
-import { Project, Profile, Task } from '@/lib/types/database';
+import { Project, Profile, Task, ProjectStatus } from '@/lib/types/database';
 
 export default function ProjectsPage() {
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Form states
+  // Modal: Create Project
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal: Edit Project
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editStatus, setEditStatus] = useState<ProjectStatus>('active');
+  const [editProgress, setEditProgress] = useState<number>(0);
+  const [editDueDate, setEditDueDate] = useState('');
+
+  // Modal: Delete confirmation
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -85,6 +102,55 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleOpenEdit = (project: Project) => {
+    setEditingProject(project);
+    setEditTitle(project.title);
+    setEditDescription(project.description || '');
+    setEditStatus(project.status);
+    setEditProgress(project.progress);
+    setEditDueDate(project.due_date || '');
+    setEditModalOpen(true);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject || !editTitle.trim()) return;
+
+    setSubmitting(true);
+    try {
+      await updateProject(editingProject.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || undefined,
+        status: editStatus,
+        progress: editProgress,
+        due_date: editDueDate || undefined,
+      });
+      setEditModalOpen(false);
+      setEditingProject(null);
+      await loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenDelete = (id: string) => {
+    setDeletingProjectId(id);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingProjectId) return;
+    setSubmitting(true);
+    try {
+      await deleteProject(deletingProjectId);
+      setDeleteModalOpen(false);
+      setDeletingProjectId(null);
+      await loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -118,7 +184,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {projects.length === 0 ? (
           <div className="col-span-full py-16 text-center text-[#8a94a6] bg-white rounded-3xl border border-[#f1f3f7]">
             <FolderGit2 className="w-12 h-12 text-[#ddd6fe] mx-auto mb-2" />
@@ -132,22 +198,42 @@ export default function ProjectsPage() {
             return (
               <div
                 key={project.id}
-                className="bg-white rounded-3xl p-6 border border-[#f1f3f7] hover:border-[#ddd6fe] shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+                className="bg-white rounded-3xl p-5 border border-[#f1f3f7] hover:border-[#ddd6fe] shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <Badge variant={project.status === 'active' ? 'emerald' : 'purple'} size="sm">
-                      {project.status === 'active' ? 'مشروع نشط' : 'قيد التخطيط'}
+                    <Badge variant={project.status === 'active' ? 'emerald' : project.status === 'completed' ? 'purple' : 'slate'} size="sm">
+                      {project.status === 'active' ? 'مشروع نشط' : project.status === 'completed' ? 'مكتمل' : 'قيد التخطيط'}
                     </Badge>
-                    {project.due_date && (
-                      <span className="text-xs text-[#8a94a6] flex items-center gap-1 font-medium">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{project.due_date}</span>
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {project.due_date && (
+                        <span className="text-xs text-[#8a94a6] flex items-center gap-1 font-medium ml-2">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{project.due_date}</span>
+                        </span>
+                      )}
+                      {isManager && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleOpenEdit(project)}
+                            className="p-1.5 rounded-xl hover:bg-[#f4f7fb] text-[#8a94a6] hover:text-[#7c3aed] transition-colors cursor-pointer"
+                            title="تعديل المشروع"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenDelete(project.id)}
+                            className="p-1.5 rounded-xl hover:bg-rose-50 text-[#8a94a6] hover:text-rose-600 transition-colors cursor-pointer"
+                            title="حذف المشروع"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="text-lg font-extrabold text-[#18181c] group-hover:text-[#7c3aed] transition-colors mb-2">
+                  <h3 className="text-base font-extrabold text-[#18181c] group-hover:text-[#7c3aed] transition-colors mb-2">
                     {project.title}
                   </h3>
 
@@ -205,7 +291,7 @@ export default function ProjectsPage() {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="مثال: إطلاق تطبيق الهاتف الذكي taska.aljouza.sa"
+              placeholder="مثال: تطوير المنصة الرقمية 2026"
               className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
             />
           </div>
@@ -255,6 +341,139 @@ export default function ProjectsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Edit Project */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title="تعديل بيانات المشروع"
+        description="تحديث معلومات المشروع ومستوى التقدم وموعد التسليم"
+      >
+        <form onSubmit={handleUpdate} className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+              عنوان المشروع <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+              الوصف
+            </label>
+            <textarea
+              rows={3}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd] resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+                حالة المشروع
+              </label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as ProjectStatus)}
+                className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+              >
+                <option value="planning">قيد التخطيط</option>
+                <option value="active">نشط</option>
+                <option value="completed">مكتمل</option>
+                <option value="on_hold">معلق</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+                نسبة التقدم ({editProgress}%)
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={editProgress}
+                onChange={(e) => setEditProgress(Number(e.target.value))}
+                className="w-full mt-3 accent-[#7c3aed]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-[#18181c] mb-1.5">
+              تاريخ التسليم
+            </label>
+            <input
+              type="date"
+              value={editDueDate}
+              onChange={(e) => setEditDueDate(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-[#f8fafd]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#f1f3f7]">
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={() => setEditModalOpen(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              isLoading={submitting}
+            >
+              حفظ التعديلات
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Delete Confirmation */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="تأكيد حذف المشروع"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200">
+            <AlertTriangle className="w-6 h-6 shrink-0 text-rose-600" />
+            <p className="text-xs leading-relaxed">
+              هل أنت متأكد من رغبتك في حذف هذا المشروع؟ سيتم فك ارتباط أي مهام تابعة له ولن تُحذف المهام.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setDeleteModalOpen(false)}
+            >
+              تراجع
+            </Button>
+            <Button
+              variant="danger"
+              size="md"
+              isLoading={submitting}
+              onClick={handleDelete}
+              icon={<Trash2 className="w-4 h-4" />}
+            >
+              حذف نهائي
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

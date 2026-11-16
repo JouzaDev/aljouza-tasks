@@ -10,7 +10,7 @@ const ibmPlexArabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "منصة الجوزاء | نظام إدارة المهام والأهداف",
+  title: "إدارة مهام الجوزاء",
   description: "نظام إدارة مهام فائق السرعة والبساطة لفريق منصة الجوزاء",
 };
 
@@ -21,8 +21,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={ibmPlexArabic.variable}>
-      <body className={`${ibmPlexArabic.className} min-h-screen bg-[#fcfbfe] text-[#1e112a] antialiased`}>
-        {children}
+      {/* 
+        خلفية خارجية تبرز الإطار المحيط: مسافة 5 بكسل من حواف الشاشة وحواف دائرية للموقع كاملاً 
+      */}
+      <body className={`${ibmPlexArabic.className} min-h-screen bg-[#eaedf3] text-[#18181c] p-[5px] box-border antialiased`}>
+        <div className="min-h-[calc(100vh-10px)] rounded-[22px] bg-[#f8fafd] border border-[#d6dde8] overflow-x-hidden flex flex-col shadow-xs">
+          {children}
+        </div>
       </body>
     </html>
   );

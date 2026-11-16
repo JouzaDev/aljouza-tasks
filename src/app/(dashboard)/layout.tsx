@@ -10,15 +10,14 @@ export default async function DashboardLayout({
   const currentUser = await getCurrentUser();
 
   return (
-    <div className="min-h-screen bg-[#f8fafd] flex flex-col lg:flex-row antialiased">
+    <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full antialiased">
       {/* 
-        القائمة الجانبية القابلة للطي على يمين لوحة التحكم (RTL Sidebar)
-        تمت إزالة الإطار الأسود حول الموقع بالكامل ليصبح الموقع نظيفاً وعريضاً ومرناً
+        القائمة الجانبية العائمة بحواف دائرية على اليمين (RTL Floating Sidebar)
       */}
       <Sidebar currentUser={currentUser} />
 
-      {/* منطقة المحتوى الرئيسية الواسعة بدون إطار أسود */}
-      <main className="flex-1 min-w-0 p-4 sm:p-7 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full pt-20 lg:pt-8">
+      {/* منطقة المحتوى الرئيسية المتجاوبة مع الجوال والأجهزة اللوحية والمكتبية */}
+      <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-7 overflow-y-auto max-w-7xl mx-auto w-full">
         {children}
       </main>
     </div>
